@@ -1,0 +1,16 @@
+roles:
+  admin:
+    - "*"
+  technician:
+    - "view_devices"
+    - "view_nodes"
+  partner_head:
+    - "view_specific_node"
+    - "view_node_devices"
+  usecase_head:
+    - "view_application"
+    - "view_associated_devices"
+  qkd_user:
+    - "view_application"
+  auditor:
+    - "*"

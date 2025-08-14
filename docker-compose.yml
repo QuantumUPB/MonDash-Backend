@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  backend:
+    build: .
+    env_file:
+      - .env
+    network_mode: host
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:7
+    network_mode: host
+    volumes:
+      - mongodb-data:/data/db
+    command: ["mongod", "--bind_ip", "127.0.0.1", "--port", "29909"]
+
+volumes:
+  mongodb-data:

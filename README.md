@@ -1,99 +1,137 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# MonDash Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This repository contains a minimal Go backend using the [chi](https://github.com/go-chi/chi) router.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Structure
 
-## Description
+- `cmd/` - application entry point.
+- `api/` - HTTP handlers and DTOs.
+- `domain/` - core domain data structures.
+- `repository/` - repository interfaces.
+- `services/` - service layer.
+- `middlewares/` - HTTP middlewares.
+- `roles.yaml` - mapping of user roles to permissions.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Building
 
 ```bash
-$ yarn install
+go build ./cmd
 ```
 
-## Compile and run the project
+## Running
 
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+go run ./cmd
 ```
 
-## Run tests
+The server listens on `:8080` by default (or on the port defined by the `PORT`
+environment variable) and exposes the following endpoints. When running via
+Docker Compose the Go application listens on port `8081` and is proxied by
+nginx on `http://localhost:8080`:
+
+- `GET /healthcheck`
+- `POST /update-node` - expects `{"nodes":[{"name":"<node>","status":"up|down","stored_key_count":0,"current_key_rate":0.0}]}`
+- `POST /update-app`
+- `POST /api/login`
+- `POST /api/register` - expects `{"username":"<name>","email":"<email>","password":"<pass>","role":"<role>"}`
+
+All non-`/api` endpoints (e.g. `/update-node`) require an `X-Auth-Token` header using the Bearer scheme, such as `X-Auth-Token: Bearer abc`.
+Routes under `/api` instead rely on a cookie set by the `/api/login` endpoint. After a successful login the server returns an `auth_token` cookie that must accompany further `/api/*` requests. The in-memory authentication backend provides a default account (`admin`/`admin`) that can be used to obtain this cookie. When using MongoDB this administrator account is automatically created if the `auth_users` collection is empty.
+Each endpoint currently contains placeholder logic that can be expanded later.
+
+## Docker
+
+The project includes a `Dockerfile` and `docker-compose.yml` for containerized
+development. The Compose file starts both the backend and a MongoDB instance on
+the host network. To run everything in containers:
+
+1. Create an environment file from the template:
+
+   ```bash
+   cp .env.template .env
+   ```
+   The `.env` file contains a `LOG_LEVEL` variable that controls log verbosity (`debug`, `info`, `warn`, `error`).
+   To send notification emails on alerts, set `EMAIL_ON_ALERT=true` and
+   configure the `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` and
+   `SMTP_FROM` variables.
+
+2. Build and start the services using Docker Compose:
+
+   ```bash
+   docker-compose up --build
+   ```
+
+   To use an existing TLS certificate instead of the self-signed one, run:
+
+   ```bash
+   make compose-up-cert CERT=/path/to/cert.crt KEY=/path/to/cert.key
+   ```
+
+The API will then be available at `http://localhost:8080` and MongoDB will be
+exposed on `localhost:27017`.
+
+## Seeding the database
+
+The `script/populate` program fills MongoDB with the default data used by
+the in-memory repositories. A separate Compose file is provided to run this
+script in a container:
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+docker-compose -f docker-compose.populate.yml run --rm populate_db
 ```
 
-## Deployment
+This command spins up a temporary Go container that seeds the `mongodb` service
+defined in the same Compose file.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Cleaning the database
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+To remove all collections from the MongoDB instance you can run:
 
 ```bash
-$ yarn install -g mau
-$ mau deploy
+docker-compose -f docker-compose.populate.yml run --rm cleanup_db
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+This launches a short-lived container that connects to the database and drops
+all data.
 
-## Resources
+## Backing up the database
 
-Check out a few resources that may come in handy when working with NestJS:
+To create a snapshot of the MongoDB volume and a portable dump that can be
+restored elsewhere, run:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+make backup-db
+```
 
-## Support
+The command stores `mongodb-data.tar.gz` and `mongodb.dump.gz` inside a new
+`backup/` directory.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+To import the dumped data back into the running MongoDB container, run:
 
-## Stay in touch
+```
+make import-db
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+This command feeds `backup/mongodb.dump.gz` to `mongorestore`.
 
-## License
+### Role definitions
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+User roles and their associated permissions are defined in `roles.yaml`. The
+file maps each role to the actions it is allowed to perform. For example:
+
+```yaml
+roles:
+  admin:
+    - "*"
+  auditor:
+    - "*"
+  technician:
+    - "view_devices"
+    - "view_nodes"
+```
+
+The `auditor` role is granted the same wildcard permission as `admin`,
+providing full visibility across the system.
+
+`LoadRolesFromEnv` in `config/roles.go` can be used to read this file, defaulting
+to `roles.yaml` when the `ROLES_FILE` environment variable is unset.

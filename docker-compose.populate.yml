@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  populate_db:
+    image: golang:1.23
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: go run ./script/populate
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    network_mode: host
+
+  cleanup_db:
+    image: golang:1.23
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: go run ./script/cleanup
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    network_mode: host
+
+  mongodb:
+    image: mongo:7
+    volumes:
+      - mongodb-data:/data/db
+    network_mode: host
+
+volumes:
+  mongodb-data:
+
