@@ -1,5 +1,10 @@
 # MonDash Backend
 
+<p float="left">
+    <img src="upb.png" alt="University Politehnica of Bucharest" width="50"/>
+    <img src="Logo.png" alt="Quantum Team @ UPB" width="100"/>
+</p>
+
 This repository contains a minimal Go backend using the [chi](https://github.com/go-chi/chi) router.
 
 ## Structure
